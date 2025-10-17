@@ -30,11 +30,41 @@ import re
 from pathlib import Path
 from typing import List, Dict, Any, Optional
 
+# Import shared types and constants
+try:
+    from validation_types import (
+        TREE_SITTER_TIMEOUT_SECONDS, MAX_ERROR_TEXT_LENGTH,
+        EXIT_SUCCESS, EXIT_WARNINGS, EXIT_ERRORS
+    )
+except ImportError:
+    # Handle when running as script
+    import importlib.util
+    script_dir = Path(__file__).parent
+    spec = importlib.util.spec_from_file_location("validation_types", script_dir / "validation_types.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+
+    TREE_SITTER_TIMEOUT_SECONDS = module.TREE_SITTER_TIMEOUT_SECONDS
+    MAX_ERROR_TEXT_LENGTH = module.MAX_ERROR_TEXT_LENGTH
+    EXIT_SUCCESS = module.EXIT_SUCCESS
+    EXIT_WARNINGS = module.EXIT_WARNINGS
+    EXIT_ERRORS = module.EXIT_ERRORS
+
 
 def check_tree_sitter_available() -> bool:
     """Check if tree-sitter CLI is available."""
     try:
-        subprocess.run(["tree-sitter", "--version"], capture_output=True, timeout=5)
+        from validation_types import TOOL_CHECK_TIMEOUT_SECONDS
+    except ImportError:
+        import importlib.util
+        script_dir = Path(__file__).parent
+        spec = importlib.util.spec_from_file_location("validation_types", script_dir / "validation_types.py")
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        TOOL_CHECK_TIMEOUT_SECONDS = module.TOOL_CHECK_TIMEOUT_SECONDS
+
+    try:
+        subprocess.run(["tree-sitter", "--version"], capture_output=True, timeout=TOOL_CHECK_TIMEOUT_SECONDS)
         return True
     except (FileNotFoundError, subprocess.TimeoutExpired):
         return False
@@ -82,7 +112,7 @@ def run_tree_sitter_parse(file_path: str) -> Dict[str, Any]:
             ["tree-sitter", "parse", file_path],
             capture_output=True,
             text=True,
-            timeout=30
+            timeout=TREE_SITTER_TIMEOUT_SECONDS
         )
 
         return {
@@ -236,7 +266,7 @@ def extract_errors_from_tree(node, file_path: str, source_code: bytes) -> List[D
             "end_line": node.end_point[0] + 1,
             "end_col": node.end_point[1] + 1,
             "severity": "error",
-            "message": f"Parse error in: {error_text[:50]}{'...' if len(error_text) > 50 else ''}",
+            "message": f"Parse error in: {error_text[:MAX_ERROR_TEXT_LENGTH]}{'...' if len(error_text) > MAX_ERROR_TEXT_LENGTH else ''}",
             "tool": "tree-sitter"
         })
 
@@ -345,11 +375,11 @@ def main():
 
     # Exit with appropriate code
     if result["summary"]["total_errors"] > 0:
-        sys.exit(3)
+        sys.exit(EXIT_ERRORS)
     elif result["summary"]["total_warnings"] > 0:
-        sys.exit(2)
+        sys.exit(EXIT_WARNINGS)
     else:
-        sys.exit(0)
+        sys.exit(EXIT_SUCCESS)
 
 
 if __name__ == "__main__":

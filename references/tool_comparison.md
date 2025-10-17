@@ -494,3 +494,121 @@ raco expand src/main.rkt && raco review src/ && raco warn -p my-package
 ```bash
 sblint src/ || exit 1
 ```
+
+
+## Version Compatibility Matrix
+
+This section documents tested and supported versions of validation tools.
+
+| Tool | Min Version | Max Tested | Recommended | Breaking Changes | Notes |
+|------|-------------|-----------|-------------|------------------|--------|
+| **clj-kondo** | 2020.01.01 | 2024.12.31 | Latest | None in JSON API | Stable JSON output since 2020 |
+| **joker** | 0.15.0 | 1.3.0 | Latest | v0.14 removed flags | Use 0.15+ |
+| **raco** | 7.0 | 8.12 | Latest | None | Part of Racket distribution |
+| **raco review** | 1.0 | Latest | Latest | None | Install via `raco pkg install review` |
+| **raco warn** | 1.0 | Latest | Latest | None | Install via `raco pkg install syntax-warn` |
+| **SBLint** | 0.1.0 | Latest | Latest | None | Stable output format |
+| **SBCL** | 1.5.0 | 2.4.0 | Latest | Output format varies | Parse carefully |
+| **tree-sitter CLI** | 0.19.0 | **0.19.3** | **0.19.3** | **v0.20+ breaks output** | **DO NOT use 0.20+** |
+| **tree-sitter Python** | 0.20.0 | Latest | Latest | None | More stable than CLI |
+| **tree-sitter-commonlisp** | 0.0.5 | Latest | Latest | None | Python package |
+| **tree-sitter-clojure** | 0.0.9 | Latest | Latest | None | Python package |
+| **tree-sitter-elisp** | 1.3.0 | Latest | Latest | None | Python package |
+
+### Critical Version Notes
+
+#### tree-sitter CLI 0.20+
+
+**⚠️ DO NOT USE tree-sitter CLI 0.20 or higher**
+
+The CLI output format changed in 0.20, breaking our parser. Always use 0.19.3:
+
+```bash
+npm install -g tree-sitter-cli@0.19.3
+```
+
+Alternatively, use the Python library instead (recommended):
+
+```bash
+pip install tree-sitter tree-sitter-clojure tree-sitter-commonlisp tree-sitter-elisp
+```
+
+#### joker 0.14
+
+joker 0.14 removed the `--lint` flag. Use 0.15.0 or higher:
+
+```bash
+brew install candid82/joker/joker  # Installs latest
+```
+
+#### clj-kondo < 2020.01.01
+
+Early versions of clj-kondo had different JSON output format. Use 2020.01.01 or higher.
+
+### Compatibility Testing
+
+Tested on:
+- **macOS** 12+ (Monterey, Ventura, Sonoma)
+- **Ubuntu** 20.04, 22.04, 24.04
+- **Python** 3.8, 3.9, 3.10, 3.11, 3.12
+
+### Tool Installation Version Commands
+
+```bash
+# Check installed versions
+clj-kondo --version
+joker --version
+raco version
+sblint --version
+sbcl --version
+tree-sitter --version
+python3 -c "import tree_sitter; print(tree_sitter.__version__)"
+
+# Check all at once
+python3 scripts/check_tools.py
+```
+
+### Upgrading Strategy
+
+1. **Check current versions**: Run `check_tools.py`
+2. **Read release notes**: Check for breaking changes
+3. **Test in dev**: Validate against test files
+4. **Update in stages**: One tool at a time
+5. **Document issues**: Add to failure_modes.md if problems occur
+
+### Pinning Versions in CI/CD
+
+**GitHub Actions:**
+```yaml
+- name: Install specific versions
+  run: |
+    npm install -g tree-sitter-cli@0.19.3
+    npm install -g clj-kondo@2024.03.13
+```
+
+**Docker:**
+```dockerfile
+RUN npm install -g tree-sitter-cli@0.19.3 && \
+    npm install -g clj-kondo@2024.03.13
+```
+
+**requirements.txt:**
+```
+tree-sitter==0.20.4
+tree-sitter-clojure==0.0.12
+tree-sitter-commonlisp==0.0.6
+tree-sitter-elisp==1.3.0
+```
+
+### Deprecation Warnings
+
+None currently. All tools are actively maintained.
+
+### Future Breaking Changes
+
+Monitor these tools for potential breaking changes:
+- clj-kondo: Watch GitHub releases for JSON format changes
+- tree-sitter: CLI version 0.21+ may have further changes
+- raco: Tied to Racket versions, usually stable
+
+

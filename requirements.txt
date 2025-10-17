@@ -1,0 +1,17 @@
+# Lisp Validator - Optional Python Dependencies
+#
+# These dependencies are optional and enhance validation capabilities.
+# The skill works without them, but some features may be unavailable.
+
+# Tree-sitter Python library (preferred over CLI for incomplete code validation)
+# More reliable than tree-sitter CLI for parsing incomplete Lisp code
+tree-sitter>=0.20.0
+
+# Lisp grammar libraries for tree-sitter
+# Enable validation of incomplete code for specific dialects
+tree-sitter-commonlisp>=0.0.5  # Common Lisp grammar
+tree-sitter-clojure>=0.0.9      # Clojure grammar
+tree-sitter-elisp>=1.3.0        # Emacs Lisp grammar
+
+# Note: Racket/Scheme grammars are not yet available in PyPI
+# For Racket/Scheme, use raco tools instead (installed separately)

@@ -24,7 +24,20 @@ import subprocess
 import sys
 import json
 import platform
+from pathlib import Path
 from typing import Dict, List, Tuple, Optional
+
+# Import shared constants
+try:
+    from validation_types import TOOL_CHECK_TIMEOUT_SECONDS
+except ImportError:
+    # Handle when running as script
+    import importlib.util
+    script_dir = Path(__file__).parent
+    spec = importlib.util.spec_from_file_location("validation_types", script_dir / "validation_types.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    TOOL_CHECK_TIMEOUT_SECONDS = module.TOOL_CHECK_TIMEOUT_SECONDS
 
 
 def check_command(command: str, args: List[str] = ["--version"]) -> Tuple[bool, Optional[str]]:
@@ -43,7 +56,7 @@ def check_command(command: str, args: List[str] = ["--version"]) -> Tuple[bool, 
             [command] + args,
             capture_output=True,
             text=True,
-            timeout=5
+            timeout=TOOL_CHECK_TIMEOUT_SECONDS
         )
         return True, result.stdout.strip()
     except FileNotFoundError:

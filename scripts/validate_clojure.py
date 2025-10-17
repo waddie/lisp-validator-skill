@@ -28,6 +28,26 @@ import re
 from pathlib import Path
 from typing import List, Dict, Any, Optional
 
+# Import shared types and constants
+try:
+    from validation_types import (
+        CLJ_KONDO_TIMEOUT_SECONDS, JOKER_TIMEOUT_SECONDS,
+        EXIT_SUCCESS, EXIT_WARNINGS, EXIT_ERRORS
+    )
+except ImportError:
+    # Handle when running as script
+    import importlib.util
+    script_dir = Path(__file__).parent
+    spec = importlib.util.spec_from_file_location("validation_types", script_dir / "validation_types.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+
+    CLJ_KONDO_TIMEOUT_SECONDS = module.CLJ_KONDO_TIMEOUT_SECONDS
+    JOKER_TIMEOUT_SECONDS = module.JOKER_TIMEOUT_SECONDS
+    EXIT_SUCCESS = module.EXIT_SUCCESS
+    EXIT_WARNINGS = module.EXIT_WARNINGS
+    EXIT_ERRORS = module.EXIT_ERRORS
+
 
 def run_clj_kondo(target: str) -> Dict[str, Any]:
     """
@@ -48,7 +68,7 @@ def run_clj_kondo(target: str) -> Dict[str, Any]:
             ],
             capture_output=True,
             text=True,
-            timeout=30
+            timeout=CLJ_KONDO_TIMEOUT_SECONDS
         )
 
         if result.stdout:
@@ -90,7 +110,7 @@ def run_joker(target: str) -> List[Dict[str, Any]]:
                 ["joker", "--lint", "--dialect", "clj", str(file)],
                 capture_output=True,
                 text=True,
-                timeout=10
+                timeout=JOKER_TIMEOUT_SECONDS
             )
 
             if result.stderr:
@@ -257,11 +277,11 @@ def main():
 
     # Exit with appropriate code
     if result["summary"]["total_errors"] > 0:
-        sys.exit(3)
+        sys.exit(EXIT_ERRORS)
     elif result["summary"]["total_warnings"] > 0:
-        sys.exit(2)
+        sys.exit(EXIT_WARNINGS)
     else:
-        sys.exit(0)
+        sys.exit(EXIT_SUCCESS)
 
 
 if __name__ == "__main__":

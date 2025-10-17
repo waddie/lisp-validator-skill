@@ -85,6 +85,205 @@ python3 scripts/validate.py file.clj --format text
 python3 scripts/validate.py file.clj --format summary
 ```
 
+## Quick Reference
+
+| Task | Command |
+|------|---------|
+| Check available tools | `python3 scripts/check_tools.py` |
+| Auto-detect & validate | `python3 scripts/validate.py src/` |
+| Validate incomplete code | `python3 scripts/validate.py file.clj --tree-sitter` |
+| Force specific dialect | `python3 scripts/validate.py file.scm --dialect scheme` |
+| Clojure-specific | `python3 scripts/validate_clojure.py src/` |
+| Racket/Scheme-specific | `python3 scripts/validate_scheme.py src/` |
+| Common Lisp-specific | `python3 scripts/validate_common_lisp.py src/` |
+| Human-readable output | `python3 scripts/validate.py src/ --format text` |
+| JSON output (default) | `python3 scripts/validate.py src/ --format json` |
+| Summary only | `python3 scripts/validate.py src/ --format summary` |
+
+**Exit Codes:**
+- `0` - No issues found
+- `2` - Warnings only (code should run)
+- `3` - Errors present (code may not run)
+
+## Examples
+
+### Example 1: Validating During Code Generation
+
+When generating Clojure code incrementally with an LLM:
+
+```bash
+# After each edit, validate with tree-sitter (handles incomplete code)
+python3 scripts/validate.py partial.clj --tree-sitter --format summary
+
+# Once complete, run comprehensive validation
+python3 scripts/validate.py complete.clj --format text
+```
+
+**Output** (incomplete code):
+```
+0 errors, 1 warnings (tree-sitter)
+```
+
+**Output** (complete code):
+```
+Target: complete.clj
+Dialect: clojure
+
+No issues found!
+
+Summary: 0 errors, 0 warnings
+Tools used: clj-kondo, joker
+```
+
+### Example 2: CI/CD Integration
+
+```yaml
+# .github/workflows/validate-lisp.yml
+name: Validate Lisp Code
+
+on: [push, pull_request]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Install validation tools
+        run: |
+          curl -sLO https://raw.githubusercontent.com/borkdude/clj-kondo/master/script/install-clj-kondo
+          chmod +x install-clj-kondo && ./install-clj-kondo
+
+      - name: Check available tools
+        run: python3 scripts/check_tools.py
+
+      - name: Validate Clojure code
+        run: |
+          python3 scripts/validate.py src/ --format json > validation-results.json
+          cat validation-results.json | jq
+
+      - name: Fail on errors
+        run: |
+          errors=$(jq '.summary.total_errors' validation-results.json)
+          if [ "$errors" -gt 0 ]; then
+            echo "❌ Found $errors errors"
+            exit 1
+          fi
+          echo "✅ Validation passed"
+```
+
+### Example 3: Progressive Validation Workflow
+
+```bash
+# Stage 1: Fast structural check (< 1s)
+python3 scripts/validate_tree_sitter.py src/core.clj
+
+# Stage 2: Comprehensive validation (if stage 1 passes)
+python3 scripts/validate_clojure.py src/core.clj
+
+# Stage 3: Auto-format (only if validation passes)
+if [ $? -eq 0 ]; then
+    cljfmt fix src/core.clj
+fi
+```
+
+### Example 4: Pre-Commit Hook
+
+```bash
+# .git/hooks/pre-commit
+#!/bin/bash
+
+echo "Validating Lisp files..."
+
+# Get staged .clj files
+STAGED_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep '\.clj$')
+
+if [ -z "$STAGED_FILES" ]; then
+    exit 0
+fi
+
+# Validate each file
+for FILE in $STAGED_FILES; do
+    python3 scripts/validate.py "$FILE" --format summary
+    if [ $? -eq 3 ]; then
+        echo "❌ Validation failed for $FILE"
+        echo "Fix errors before committing"
+        exit 1
+    fi
+done
+
+echo "✅ All files validated successfully"
+exit 0
+```
+
+### Example 5: Handling Validation Errors in Scripts
+
+```python
+import subprocess
+import json
+
+def validate_and_report(file_path):
+    """Validate a file and provide structured feedback."""
+    result = subprocess.run(
+        ["python3", "scripts/validate.py", file_path, "--format", "json"],
+        capture_output=True,
+        text=True
+    )
+
+    data = json.loads(result.stdout)
+
+    if data["summary"]["total_errors"] > 0:
+        print(f"⚠️  Found {data['summary']['total_errors']} errors in {file_path}:")
+        for finding in data["findings"]:
+            if finding["severity"] == "error":
+                location = f"{finding['file']}:{finding['line']}:{finding['col']}"
+                print(f"  {location}: {finding['message']}")
+        return False
+
+    print(f"✅ {file_path} validated successfully")
+    return True
+
+# Use it
+if not validate_and_report("src/main.clj"):
+    exit(1)
+```
+
+### Example 6: Checking Tool Installation
+
+```bash
+# Check which tools are available
+python3 scripts/check_tools.py
+
+# Install missing high-priority tools
+python3 scripts/check_tools.py --json | \
+    jq -r '.tools | to_entries[] | select(.value.available == false and .value.priority == "high") | .key'
+```
+
+**Output:**
+```
+=== Lisp Validation Tools Status ===
+
+CLOJURE:
+  [✓] clj-kondo (2024.03.13)
+      Primary Clojure validator with JSON output
+  [✗] joker
+      Secondary Clojure validator with complementary checks
+
+UNIVERSAL:
+  [✓] tree-sitter-python (installed)
+      Tree-sitter Python library (more reliable than CLI)
+  [✗] tree-sitter
+      Universal parser for incomplete/partial code (CLI)
+
+=== Recommendations ===
+
+CLOJURE:
+  ℹ️  Consider installing joker (complementary checks)
+
+UNIVERSAL:
+  ℹ️  Consider tree-sitter Python library (more reliable)
+```
+
 ## Dialect-Specific Validation
 
 ### Clojure
@@ -528,27 +727,103 @@ fi
 
 ## Troubleshooting
 
-**"Tool not found" errors:**
-- Run `check_tools.py` to see installation status
-- Follow installation commands for your platform
-- Verify tool is in PATH
+### "Tool not found" errors
 
-**"Cannot parse output" errors:**
-- Check tool version (some have breaking changes)
-- tree-sitter CLI: use version 0.19.3 (not 0.20+)
-- Try alternate tool for same dialect
+**Problem:** `clj-kondo not found` even though it's installed
 
-**"Unexpected EOF" on complete code:**
-- Code may have hidden syntax errors
-- Use tree-sitter to identify exact location
-- Check for unmatched delimiters earlier in file
+```bash
+# 1. Check if tool is in PATH
+which clj-kondo
 
-**False positives:**
-- Some tools (joker) may flag macro-introduced bindings
-- Cross-reference with multiple tools
-- Use dialect-specific validators over generic ones
+# 2. Verify installation
+clj-kondo --version
 
-**Performance issues:**
-- Use `--no-joker` or `--no-sbcl` flags to skip secondary tools
-- Validate changed files only (use clj-kondo caching)
-- Run validations in parallel for large projects
+# 3. Check PATH variable
+echo $PATH
+
+# 4. If not found, install it
+brew install borkdude/brew/clj-kondo
+# or
+npm install -g clj-kondo
+```
+
+### "Cannot parse output" errors
+
+**Problem:** Tree-sitter parse errors on valid code
+
+This usually means you're using tree-sitter CLI 0.20+. Downgrade to 0.19.3:
+
+```bash
+# Uninstall current version
+npm uninstall -g tree-sitter-cli
+
+# Install correct version
+npm install -g tree-sitter-cli@0.19.3
+
+# Verify version
+tree-sitter --version
+# Should output: tree-sitter 0.19.3
+```
+
+### "Unexpected EOF" on complete code
+
+**Problem:** Getting EOF errors but code looks complete
+
+```bash
+# Use tree-sitter to find exact error location
+python3 scripts/validate_tree_sitter.py file.clj
+
+# Check for hidden characters or mismatched delimiters
+cat -A file.clj  # Shows hidden characters
+
+# Count delimiters
+grep -o '(' file.clj | wc -l  # Count opening parens
+grep -o ')' file.clj | wc -l  # Count closing parens
+```
+
+### False positives
+
+**Problem:** Joker flags macro-introduced bindings as errors
+
+```bash
+# Cross-reference with clj-kondo only
+python3 scripts/validate_clojure.py file.clj --no-joker
+
+# Compare tools side by side
+python3 scripts/validate_clojure.py file.clj --format json | \
+    jq '.findings[] | select(.tool == "joker")'
+```
+
+### Performance issues
+
+**Problem:** Validation takes too long on large projects
+
+```bash
+# Skip secondary tools for faster validation
+python3 scripts/validate_clojure.py src/ --no-joker
+python3 scripts/validate_common_lisp.py src/ --no-sbcl
+
+# Validate only changed files (with git)
+git diff --name-only --cached | \
+    grep '\.clj$' | \
+    xargs python3 scripts/validate.py
+
+# Parallel validation for multiple files
+find src -name '*.clj' | \
+    xargs -P 4 -I {} python3 scripts/validate.py {}
+```
+
+### JSON parsing errors
+
+**Problem:** Cannot parse validation output as JSON
+
+```bash
+# Ensure you're getting JSON output
+python3 scripts/validate.py file.clj --format json | jq
+
+# Check for stderr contamination
+python3 scripts/validate.py file.clj --format json 2>/dev/null | jq
+
+# Validate JSON structure
+python3 scripts/validate.py file.clj --format json | python3 -m json.tool
+```

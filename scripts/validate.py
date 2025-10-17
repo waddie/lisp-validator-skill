@@ -27,6 +27,36 @@ import re
 from pathlib import Path
 from typing import Dict, Any, List, Optional
 
+# Import shared types and constants
+try:
+    from validation_types import (
+        ValidationResult, Finding, ValidationSummary,
+        DIALECT_DETECTION_BYTES, EXIT_SUCCESS, EXIT_WARNINGS, EXIT_ERRORS,
+        DIALECT_CLOJURE, DIALECT_RACKET, DIALECT_SCHEME,
+        DIALECT_COMMON_LISP, DIALECT_ELISP, DIALECT_UNKNOWN
+    )
+except ImportError:
+    # Handle when running as script
+    import importlib.util
+    script_dir = Path(__file__).parent
+    spec = importlib.util.spec_from_file_location("validation_types", script_dir / "validation_types.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+
+    ValidationResult = module.ValidationResult
+    Finding = module.Finding
+    ValidationSummary = module.ValidationSummary
+    DIALECT_DETECTION_BYTES = module.DIALECT_DETECTION_BYTES
+    EXIT_SUCCESS = module.EXIT_SUCCESS
+    EXIT_WARNINGS = module.EXIT_WARNINGS
+    EXIT_ERRORS = module.EXIT_ERRORS
+    DIALECT_CLOJURE = module.DIALECT_CLOJURE
+    DIALECT_RACKET = module.DIALECT_RACKET
+    DIALECT_SCHEME = module.DIALECT_SCHEME
+    DIALECT_COMMON_LISP = module.DIALECT_COMMON_LISP
+    DIALECT_ELISP = module.DIALECT_ELISP
+    DIALECT_UNKNOWN = module.DIALECT_UNKNOWN
+
 # Import dialect-specific validators
 try:
     from validate_clojure import validate_clojure
@@ -70,17 +100,17 @@ def detect_dialect_from_extension(file_path: str) -> Optional[str]:
     ext = Path(file_path).suffix.lower()
 
     extension_map = {
-        ".clj": "clojure",
-        ".cljs": "clojure",
-        ".cljc": "clojure",
-        ".edn": "clojure",
-        ".rkt": "racket",
-        ".scm": "scheme",
-        ".ss": "scheme",
-        ".lisp": "common-lisp",
-        ".cl": "common-lisp",
-        ".asd": "common-lisp",
-        ".el": "elisp"
+        ".clj": DIALECT_CLOJURE,
+        ".cljs": DIALECT_CLOJURE,
+        ".cljc": DIALECT_CLOJURE,
+        ".edn": DIALECT_CLOJURE,
+        ".rkt": DIALECT_RACKET,
+        ".scm": DIALECT_SCHEME,
+        ".ss": DIALECT_SCHEME,
+        ".lisp": DIALECT_COMMON_LISP,
+        ".cl": DIALECT_COMMON_LISP,
+        ".asd": DIALECT_COMMON_LISP,
+        ".el": DIALECT_ELISP
     }
 
     return extension_map.get(ext)
@@ -98,31 +128,31 @@ def detect_dialect_from_content(content: str) -> Optional[str]:
     """
     # Clojure indicators
     if re.search(r'^\s*\(ns\s+', content, re.MULTILINE):
-        return "clojure"
+        return DIALECT_CLOJURE
 
     if re.search(r'\[.*:as\s+', content) or '::' in content:
-        return "clojure"
+        return DIALECT_CLOJURE
 
     # Racket indicators
     if re.search(r'^\s*#lang\s+racket', content, re.MULTILINE):
-        return "racket"
+        return DIALECT_RACKET
 
     if re.search(r'^\s*\(module\s+', content, re.MULTILINE):
-        return "racket"
+        return DIALECT_RACKET
 
     # Common Lisp indicators
     if re.search(r'^\s*\(defpackage\s+', content, re.MULTILINE):
-        return "common-lisp"
+        return DIALECT_COMMON_LISP
 
     if re.search(r'^\s*\(in-package\s+', content, re.MULTILINE):
-        return "common-lisp"
+        return DIALECT_COMMON_LISP
 
     if re.search(r'^\s*\(defsystem\s+', content, re.MULTILINE):
-        return "common-lisp"
+        return DIALECT_COMMON_LISP
 
     # Scheme indicators (less distinctive)
     if re.search(r'^\s*\(define-module\s+', content, re.MULTILINE):
-        return "scheme"
+        return DIALECT_SCHEME
 
     return None
 
@@ -157,14 +187,14 @@ def detect_dialect(target: str) -> str:
         # Try content analysis
         try:
             with open(path, 'r', encoding='utf-8') as f:
-                content = f.read(1024)  # Read first 1KB
+                content = f.read(DIALECT_DETECTION_BYTES)
                 dialect = detect_dialect_from_content(content)
                 if dialect:
                     return dialect
         except Exception:
             pass
 
-    return "unknown"
+    return DIALECT_UNKNOWN
 
 
 def validate(target: str, dialect: Optional[str] = None, use_tree_sitter: bool = False) -> Dict[str, Any]:
@@ -179,6 +209,21 @@ def validate(target: str, dialect: Optional[str] = None, use_tree_sitter: bool =
     Returns:
         Unified validation results
     """
+    # Validate target path exists
+    target_path = Path(target)
+    if not target_path.exists():
+        return {
+            "error": f"Target not found: {target}",
+            "target": target,
+            "dialect": DIALECT_UNKNOWN,
+            "findings": [],
+            "summary": {
+                "total_errors": 0,
+                "total_warnings": 0,
+                "tools_used": []
+            }
+        }
+
     # Auto-detect dialect if not specified
     if not dialect:
         dialect = detect_dialect(target)
@@ -198,16 +243,16 @@ def validate(target: str, dialect: Optional[str] = None, use_tree_sitter: bool =
     if use_tree_sitter:
         # Force tree-sitter for incomplete code
         validator_result = validate_tree_sitter(target)
-    elif dialect == "clojure":
+    elif dialect == DIALECT_CLOJURE:
         validator_result = validate_clojure(target)
-    elif dialect in ["racket", "scheme"]:
+    elif dialect in [DIALECT_RACKET, DIALECT_SCHEME]:
         validator_result = validate_scheme(target)
-    elif dialect == "common-lisp":
+    elif dialect == DIALECT_COMMON_LISP:
         validator_result = validate_common_lisp(target)
-    elif dialect == "elisp":
+    elif dialect == DIALECT_ELISP:
         # Elisp: use tree-sitter as primary option
         validator_result = validate_tree_sitter(target)
-    elif dialect == "unknown":
+    elif dialect == DIALECT_UNKNOWN:
         # Fallback: try tree-sitter
         validator_result = validate_tree_sitter(target)
         if "warnings" not in result:
@@ -321,11 +366,11 @@ def main():
     # Exit with appropriate code
     summary = result.get("summary", {})
     if summary.get("total_errors", 0) > 0:
-        sys.exit(3)
+        sys.exit(EXIT_ERRORS)
     elif summary.get("total_warnings", 0) > 0:
-        sys.exit(2)
+        sys.exit(EXIT_WARNINGS)
     else:
-        sys.exit(0)
+        sys.exit(EXIT_SUCCESS)
 
 
 if __name__ == "__main__":
