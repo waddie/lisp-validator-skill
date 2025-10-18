@@ -1,10 +1,10 @@
 # Lisp Validator
 
-A comprehensive validation skill for Lisp code across multiple dialects (Clojure, Racket, Scheme, Common Lisp), optimized for LLM workflows.
+A validation skill for Lisp code across multiple dialects (Clojure, Racket, Scheme, Common Lisp), optimized for LLM workflows.
 
 ## Overview
 
-This skill validates Lisp code using dialect-specific tools, providing structured JSON output with precise file:line:col information. **Critical feature:** Handles incomplete/partial code via tree-sitter, making it ideal for LLM-guided code generation.
+This skill validates Lisp code using dialect-specific tools, providing structured JSON output with precise file:line:col information.
 
 **Supported Dialects:**
 - Clojure (clj-kondo + joker)
@@ -16,7 +16,7 @@ This skill validates Lisp code using dialect-specific tools, providing structure
 
 ### For Claude Code
 
-```bash
+```sh
 # Install to ~/.claude/skills/
 ./install.sh
 
@@ -39,13 +39,13 @@ See [Skills API Documentation](https://docs.claude.com/en/api/skills-guide) for 
 
 ### Check Available Tools
 
-```bash
+```sh
 python3 scripts/check_tools.py
 ```
 
 ### Validate Code (Auto-Detect Dialect)
 
-```bash
+```sh
 # Auto-detect dialect
 python3 scripts/validate.py src/
 
@@ -61,56 +61,32 @@ python3 scripts/validate.py src/ --format text
 
 ## Features
 
-✅ **Auto-Detection** - Identifies dialect from file extension and content
-✅ **Incomplete Code** - Validates partial expressions via tree-sitter
-✅ **Structured Output** - JSON format for machine parsing
-✅ **Multi-Tool** - Combines complementary validators
-✅ **Progressive Validation** - Fast → Comprehensive workflow
-✅ **Tool Guidance** - Installation detection and recommendations
-
-## Structure
-
-```
-lisp-validator/
-├── SKILL.md                    # Complete skill documentation
-├── LICENSE                     # AGPL 3.0 license
-├── README.md                   # This file
-├── CLAUDE.md                   # Claude Code guidance
-├── package.sh                  # Create distributable zip
-├── install.sh                  # Install to Claude Code
-├── uninstall.sh                # Remove from Claude Code
-├── scripts/
-│   ├── validate.py             # Main orchestrator (auto-detect)
-│   ├── validate_clojure.py     # Clojure validator
-│   ├── validate_scheme.py      # Racket/Scheme validator
-│   ├── validate_common_lisp.py # Common Lisp validator
-│   ├── validate_tree_sitter.py # Incomplete code validator
-│   └── check_tools.py          # Tool detection
-└── references/
-    ├── tool_comparison.md      # Tool matrix and recommendations
-    ├── error_patterns.md       # Output parsing patterns
-    └── integration_strategies.md # LLM workflow best practices
-```
+- **Auto-Detection** - Identifies dialect from file extension and content
+- **Incomplete Code** - Validates partial expressions via tree-sitter
+- **Structured Output** - JSON format for machine parsing
+- **Multi-Tool** - Combines complementary validators
+- **Progressive Validation** - Fast → Comprehensive workflow
+- **Tool Guidance** - Installation detection and recommendations
 
 ## Dialect-Specific Usage
 
 ### Clojure
 
-```bash
+```sh
 python3 scripts/validate_clojure.py src/
 python3 scripts/validate_clojure.py src/ --no-joker  # Skip joker
 ```
 
 ### Racket/Scheme
 
-```bash
+```sh
 python3 scripts/validate_scheme.py src/
 python3 scripts/validate_scheme.py file.scm --dialect guile  # Fallback
 ```
 
 ### Common Lisp
 
-```bash
+```sh
 python3 scripts/validate_common_lisp.py src/
 python3 scripts/validate_common_lisp.py src/ --no-sbcl  # Skip SBCL
 ```
@@ -118,26 +94,26 @@ python3 scripts/validate_common_lisp.py src/ --no-sbcl  # Skip SBCL
 ## Installation Requirements
 
 **Clojure:**
-```bash
+```sh
 brew install borkdude/brew/clj-kondo
 brew install candid82/joker/joker
 ```
 
 **Racket/Scheme:**
-```bash
+```sh
 brew install racket
 raco pkg install review syntax-warn
 ```
 
 **Common Lisp:**
-```bash
+```bsh
 brew install roswell
 ros install sbcl && ros use sbcl
 ros install cxxxr/sblint
 ```
 
 **Universal (all dialects):**
-```bash
+```sh
 npm install -g tree-sitter-cli@0.19.3
 pip install tree-sitter tree-sitter-commonlisp tree-sitter-clojure tree-sitter-elisp
 ```
@@ -173,15 +149,6 @@ pip install tree-sitter tree-sitter-commonlisp tree-sitter-clojure tree-sitter-e
 - **2** - Warnings only
 - **3** - Errors present
 
-## Documentation
-
-See [SKILL.md](SKILL.md) for complete documentation including:
-- Workflow decision trees
-- Progressive validation patterns
-- Incomplete code handling
-- Reference documentation usage
-- Troubleshooting guide
-
 ## License
 
 Copyright (C) 2025 Tom Waddington
@@ -193,11 +160,3 @@ This program is distributed in the hope that it will be useful, but WITHOUT ANY 
 You should have received a copy of the GNU Affero General Public License along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 See the [LICENSE](LICENSE) file for the complete license text.
-
-## Based On
-
-This skill implements findings from comprehensive research on Lisp validation tools for LLM workflows, incorporating best practices for:
-- Structured output prioritization
-- Incomplete code validation (tree-sitter)
-- Multi-tool validation strategies
-- Error normalization across tools
