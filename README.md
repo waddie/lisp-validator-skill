@@ -1,6 +1,6 @@
-# Lisp Validator
+# Lisp Validator Claude Skill
 
-A validation skill for Lisp code across multiple dialects (Clojure, Racket, Scheme, Common Lisp), optimized for LLM workflows.
+A validation Claude Skill for Lisp code across multiple dialects (Clojure, Racket, Scheme, Common Lisp), optimized for LLM workflows.
 
 ## Overview
 
