@@ -1,3 +1,5 @@
+A solution for a problem that no longer exists.
+
 # Lisp Validator Claude Skill
 
 A validation Claude Skill for Lisp code across multiple dialects (Clojure, Racket, Scheme, Common Lisp).
